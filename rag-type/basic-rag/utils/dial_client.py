@@ -8,6 +8,14 @@ through EPAM's DIAL service.
 import os
 from openai import AzureOpenAI
 from typing import List, Dict, Any, Optional
+from dotenv import load_dotenv
+
+# Load environment variables before Langfuse init (important for Langfuse SDK)
+load_dotenv()
+
+from langfuse import get_client as get_langfuse_client
+
+langfuse_client = get_langfuse_client()
 
 
 class DIALClient:
@@ -55,27 +63,54 @@ class DIALClient:
     def get_completion(self, messages: List[Dict[str, str]], model: Optional[str] = None) -> str:
         """
         Get completion from DIAL API.
-        
+
         Args:
             messages: List of message dictionaries with 'role' and 'content'
             model: Override default model for this request
-            
+
         Returns:
             Response content from the model
         """
         if not self.client:
             return "❌ DIAL client not properly initialized. Please check your API key."
-        
+
+        model_used = model or self.model
+
         try:
+            # Create a Langfuse generation observation for this LLM call
+            generation = langfuse_client.start_observation(
+                name="dial-completion",
+                as_type="generation",
+                input={"messages": messages},
+            )
+            generation.update(model=model_used)
+
             response = self.client.chat.completions.create(
-                model=model or self.model,
+                model=model_used,
                 messages=messages,
                 temperature=float(os.getenv("DIAL_TEMPERATURE", "0.7"))
             )
-            return response.choices[0].message.content
-            
+
+            content = response.choices[0].message.content
+
+            # Update generation with output and token usage
+            generation.update(
+                output={"content": content},
+                usage={
+                    "input": response.usage.prompt_tokens if response.usage else None,
+                    "output": response.usage.completion_tokens if response.usage else None,
+                }
+            )
+            generation.end()
+
+            return content
+
         except Exception as e:
-            return f"❌ Error calling DIAL API: {e}"
+            error_msg = f"❌ Error calling DIAL API: {e}"
+            if 'generation' in locals():
+                generation.update(level="error")
+                generation.end()
+            return error_msg
     
     def analyze_sentiment(self, text: str) -> str:
         """

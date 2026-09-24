@@ -28,6 +28,9 @@ from basic_rag import BasicRAG  # noqa: E402 — must come after sys.path update
 from chat_history import ChatHistoryManager  # noqa: E402
 from message_trimming import trim_messages  # noqa: E402
 from utils.dial_client import DIALClient  # noqa: E402
+from langfuse import get_client as get_langfuse_client  # noqa: E402
+
+langfuse_client = get_langfuse_client()
 
 
 class ConversationalRAG:
@@ -131,13 +134,21 @@ class ConversationalRAG:
         if self.rag.vector_store is None:
             return "❌ RAG not set up yet. Call setup() first."
 
+        # Create top-level trace with session_id for conversation tracking
+        trace = langfuse_client.start_as_current_observation(
+            as_type="span",
+            name="conversational-rag-chat",
+            input={"user_message": user_message},
+            session_id=self.session_id,
+        )
+
         # Record the user turn
         self.session.add_message("user", user_message)
 
         # Build a context-aware search query
         search_query = self._build_standalone_query(user_message)
 
-        # Retrieve relevant documents
+        # Retrieve relevant documents (this creates its own retriever span)
         retrieved_docs = self.rag.retrieve_relevant_docs(search_query, k=k)
 
         # Build context string
@@ -152,7 +163,7 @@ class ConversationalRAG:
 
         # Build trimmed history for the prompt
         llm_msgs = self.session.get_messages_for_llm()
-        trimmed_history, token_count = trim_messages(
+        trimmed_history, _ = trim_messages(
             llm_msgs[:-1],  # exclude the current user message (added separately)
             max_history_length=self.max_history_length,
         )
@@ -177,11 +188,15 @@ class ConversationalRAG:
             {"role": "user", "content": user_message}
         ]
 
-        # Generate response
+        # Generate response (this creates its own generation span via DIALClient)
         response = self.dial_client.get_completion(messages)
 
         # Record assistant turn
         self.session.add_message("assistant", response)
+
+        trace.update(output={"response": response})
+        trace.end()
+
         return response
 
     # ------------------------------------------------------------------

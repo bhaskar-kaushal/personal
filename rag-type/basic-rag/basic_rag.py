@@ -18,9 +18,13 @@ import json
 import argparse
 from pathlib import Path
 from dotenv import load_dotenv
-from utils.dial_client import DIALClient
 
 load_dotenv()
+
+from utils.dial_client import DIALClient
+from langfuse import get_client as get_langfuse_client
+
+langfuse_client = get_langfuse_client()
 
 
 class BasicRAG:
@@ -159,7 +163,27 @@ class BasicRAG:
         if self.vector_store is None:
             raise RuntimeError("Vector store not initialised. Call create_vector_store() first.")
 
+        # Create a Langfuse retriever observation
+        retriever_span = langfuse_client.start_observation(
+            name="retrieve-documents",
+            as_type="retriever",
+            input={"query": query, "k": k},
+        )
+
         docs = self.vector_store.similarity_search(query, k=k)
+
+        # Extract doc metadata for output
+        retrieved_sources = [
+            {
+                "source": doc.metadata.get("source", "unknown"),
+                "content_preview": doc.page_content[:200] + ("..." if len(doc.page_content) > 200 else "")
+            }
+            for doc in docs
+        ]
+
+        retriever_span.update(output={"documents": retrieved_sources, "count": len(docs)})
+        retriever_span.end()
+
         return docs
 
     # ------------------------------------------------------------------
@@ -219,10 +243,21 @@ class BasicRAG:
         Returns:
             str: Generated answer
         """
+        # Create a top-level trace for this RAG query
+        trace = langfuse_client.start_as_current_observation(
+            as_type="span",
+            name="basic-rag-query",
+            input={"query": user_query, "k": k},
+        )
+
         print(f"\n🔍 Retrieving top-{k} chunks for: \"{user_query}\"")
         docs = self.retrieve_relevant_docs(user_query, k=k)
         print(f"   Retrieved {len(docs)} chunk(s).")
         answer = self.generate_response(user_query, docs)
+
+        trace.update(output={"answer": answer})
+        trace.end()
+
         return answer
 
     # ------------------------------------------------------------------
