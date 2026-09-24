@@ -17,7 +17,8 @@ sys.path.insert(0, str(_REPO_ROOT / "basic-rag"))
 sys.path.insert(0, str(_REPO_ROOT / "conversational-rag"))
 
 from dotenv import load_dotenv
-load_dotenv()
+# Load from conversational-rag/.env which has Langfuse credentials
+load_dotenv(Path(__file__).resolve().parent / "conversational-rag" / ".env")
 
 from basic_rag import BasicRAG
 from conversation_history import ConversationalRAG
@@ -34,6 +35,16 @@ def test_basic_rag():
 
     try:
         rag = BasicRAG(vector_store_type="faiss")
+
+        # Auto-extract if chunks.json is missing
+        content_dir = _REPO_ROOT / "basic-rag" / "data" / "extracted_content"
+        chunks_path = content_dir / "chunks.json"
+        if not chunks_path.exists():
+            print("📥 Extracting content from Wikipedia...")
+            from extract_content import extract_content_from_url, save_chunks
+            chunks = extract_content_from_url()
+            save_chunks(chunks, str(content_dir))
+
         rag.setup()
 
         # This should create a trace with retriever and generation spans

@@ -1,0 +1,27 @@
+{
+  "session_id": "session_83b58312",
+  "created_at": "2026-09-24T19:11:18.857699",
+  "updated_at": "2026-09-24T19:13:14.646503",
+  "messages": [
+    {
+      "role": "user",
+      "content": "What's going on ? ",
+      "timestamp": "2026-09-24T19:11:24.774140"
+    },
+    {
+      "role": "assistant",
+      "content": "❌ Error calling DIAL API: Request timed out.",
+      "timestamp": "2026-09-24T19:11:41.050500"
+    },
+    {
+      "role": "user",
+      "content": "Hello khalasa movent",
+      "timestamp": "2026-09-24T19:12:58.404316"
+    },
+    {
+      "role": "assistant",
+      "content": "❌ Error calling DIAL API: Request timed out.",
+      "timestamp": "2026-09-24T19:13:14.646503"
+    }
+  ]
+}

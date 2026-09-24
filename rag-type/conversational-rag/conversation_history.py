@@ -139,7 +139,7 @@ class ConversationalRAG:
             as_type="span",
             name="conversational-rag-chat",
             input={"user_message": user_message},
-            session_id=self.session_id,
+            trace_context={"session_id": self.session_id},
         ) as trace:
             # Record the user turn
             self.session.add_message("user", user_message)

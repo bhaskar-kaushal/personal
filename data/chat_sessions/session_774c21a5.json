@@ -1,0 +1,17 @@
+{
+  "session_id": "session_774c21a5",
+  "created_at": "2026-09-24T19:16:33.976258",
+  "updated_at": "2026-09-24T19:17:15.958653",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hello khalsa movent",
+      "timestamp": "2026-09-24T19:16:59.310502"
+    },
+    {
+      "role": "assistant",
+      "content": "❌ Error calling DIAL API: Request timed out.",
+      "timestamp": "2026-09-24T19:17:15.958653"
+    }
+  ]
+}
