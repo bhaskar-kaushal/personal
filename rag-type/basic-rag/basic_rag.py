@@ -244,19 +244,17 @@ class BasicRAG:
             str: Generated answer
         """
         # Create a top-level trace for this RAG query
-        trace = langfuse_client.start_as_current_observation(
+        with langfuse_client.start_as_current_observation(
             as_type="span",
             name="basic-rag-query",
             input={"query": user_query, "k": k},
-        )
+        ) as trace:
+            print(f"\n🔍 Retrieving top-{k} chunks for: \"{user_query}\"")
+            docs = self.retrieve_relevant_docs(user_query, k=k)
+            print(f"   Retrieved {len(docs)} chunk(s).")
+            answer = self.generate_response(user_query, docs)
 
-        print(f"\n🔍 Retrieving top-{k} chunks for: \"{user_query}\"")
-        docs = self.retrieve_relevant_docs(user_query, k=k)
-        print(f"   Retrieved {len(docs)} chunk(s).")
-        answer = self.generate_response(user_query, docs)
-
-        trace.update(output={"answer": answer})
-        trace.end()
+            trace.update(output={"answer": answer})
 
         return answer
 

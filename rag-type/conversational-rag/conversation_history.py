@@ -134,68 +134,66 @@ class ConversationalRAG:
         if self.rag.vector_store is None:
             return "❌ RAG not set up yet. Call setup() first."
 
-        # Create top-level trace with session_id for conversation tracking
-        trace = langfuse_client.start_as_current_observation(
+        # Create top-level trace for conversation tracking with session_id
+        with langfuse_client.start_as_current_observation(
             as_type="span",
             name="conversational-rag-chat",
             input={"user_message": user_message},
             session_id=self.session_id,
-        )
+        ) as trace:
+            # Record the user turn
+            self.session.add_message("user", user_message)
 
-        # Record the user turn
-        self.session.add_message("user", user_message)
+            # Build a context-aware search query
+            search_query = self._build_standalone_query(user_message)
 
-        # Build a context-aware search query
-        search_query = self._build_standalone_query(user_message)
+            # Retrieve relevant documents (this creates its own retriever span)
+            retrieved_docs = self.rag.retrieve_relevant_docs(search_query, k=k)
 
-        # Retrieve relevant documents (this creates its own retriever span)
-        retrieved_docs = self.rag.retrieve_relevant_docs(search_query, k=k)
+            # Build context string
+            if retrieved_docs:
+                ctx_parts = []
+                for i, doc in enumerate(retrieved_docs, 1):
+                    source = doc.metadata.get("source", "unknown")
+                    ctx_parts.append(f"[Chunk {i} | {source}]\n{doc.page_content}")
+                context = "\n\n".join(ctx_parts)
+            else:
+                context = "No relevant context found."
 
-        # Build context string
-        if retrieved_docs:
-            ctx_parts = []
-            for i, doc in enumerate(retrieved_docs, 1):
-                source = doc.metadata.get("source", "unknown")
-                ctx_parts.append(f"[Chunk {i} | {source}]\n{doc.page_content}")
-            context = "\n\n".join(ctx_parts)
-        else:
-            context = "No relevant context found."
+            # Build trimmed history for the prompt
+            llm_msgs = self.session.get_messages_for_llm()
+            trimmed_history, _ = trim_messages(
+                llm_msgs[:-1],  # exclude the current user message (added separately)
+                max_history_length=self.max_history_length,
+            )
 
-        # Build trimmed history for the prompt
-        llm_msgs = self.session.get_messages_for_llm()
-        trimmed_history, _ = trim_messages(
-            llm_msgs[:-1],  # exclude the current user message (added separately)
-            max_history_length=self.max_history_length,
-        )
+            system_msg = {
+                "role": "system",
+                "content": (
+                    "You are a helpful conversational assistant. "
+                    "Answer questions using the provided document context. "
+                    "You also have access to prior conversation history to handle follow-up questions. "
+                    "If the context doesn't contain an answer, say so clearly. "
+                    "Do not fabricate facts."
+                ),
+            }
 
-        system_msg = {
-            "role": "system",
-            "content": (
-                "You are a helpful conversational assistant. "
-                "Answer questions using the provided document context. "
-                "You also have access to prior conversation history to handle follow-up questions. "
-                "If the context doesn't contain an answer, say so clearly. "
-                "Do not fabricate facts."
-            ),
-        }
+            context_msg = {
+                "role": "system",
+                "content": f"Document context:\n{context}",
+            }
 
-        context_msg = {
-            "role": "system",
-            "content": f"Document context:\n{context}",
-        }
+            messages = [system_msg] + trimmed_history + [context_msg] + [
+                {"role": "user", "content": user_message}
+            ]
 
-        messages = [system_msg] + trimmed_history + [context_msg] + [
-            {"role": "user", "content": user_message}
-        ]
+            # Generate response (this creates its own generation span via DIALClient)
+            response = self.dial_client.get_completion(messages)
 
-        # Generate response (this creates its own generation span via DIALClient)
-        response = self.dial_client.get_completion(messages)
+            # Record assistant turn
+            self.session.add_message("assistant", response)
 
-        # Record assistant turn
-        self.session.add_message("assistant", response)
-
-        trace.update(output={"response": response})
-        trace.end()
+            trace.update(output={"response": response})
 
         return response
 

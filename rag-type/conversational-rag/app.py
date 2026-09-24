@@ -257,8 +257,6 @@ else:
         st.session_state.messages.append(
             {"role": "assistant", "content": response, "timestamp": resp_ts}
         )
-
-        # Flush Langfuse traces before rerun (important for Streamlit's script execution model)
         langfuse_client.flush()
-
         st.rerun()
+

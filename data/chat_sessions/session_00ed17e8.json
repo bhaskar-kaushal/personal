@@ -1,0 +1,17 @@
+{
+  "session_id": "session_00ed17e8",
+  "created_at": "2026-09-24T19:08:37.371279",
+  "updated_at": "2026-09-24T19:09:22.473071",
+  "messages": [
+    {
+      "role": "user",
+      "content": "what is khalsa movemnt",
+      "timestamp": "2026-09-24T19:08:46.277432"
+    },
+    {
+      "role": "assistant",
+      "content": "❌ Error calling DIAL API: Request timed out.",
+      "timestamp": "2026-09-24T19:09:22.473071"
+    }
+  ]
+}
