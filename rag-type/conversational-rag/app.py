@@ -25,6 +25,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Import and initialize Langfuse early (after load_dotenv, before other imports)
+from langfuse import get_client as get_langfuse_client
+langfuse_client = get_langfuse_client()
+
 # ---------------------------------------------------------------------------
 # Path setup so we can import from basic-rag
 # ---------------------------------------------------------------------------
@@ -253,4 +257,8 @@ else:
         st.session_state.messages.append(
             {"role": "assistant", "content": response, "timestamp": resp_ts}
         )
+
+        # Flush Langfuse traces before rerun (important for Streamlit's script execution model)
+        langfuse_client.flush()
+
         st.rerun()
