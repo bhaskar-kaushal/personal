@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status *)",
+      "Bash(git log *)",
+      "Bash(git diff *)",
+      "Bash(git show *)",
+      "Bash(git add *)",
+      "Bash(ls *)",
+      "Bash(find *)",
+      "Bash(curl *)",
+      "Bash(grep *)"
+    ]
+  }
+}
