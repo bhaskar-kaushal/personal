@@ -1,0 +1,7 @@
+# Model weights are fetched once via `face-verify download-models` and never committed.
+models/*
+!models/.gitkeep
+
+# Enrollment galleries, images and reports contain biometric data and stay local.
+data/*
+!data/.gitkeep
