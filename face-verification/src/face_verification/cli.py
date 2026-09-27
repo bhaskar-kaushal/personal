@@ -49,7 +49,7 @@ def build_encoder(models_dir: Path) -> FaceEncoder:
         raise FileNotFoundError(
             f"Missing model files: {', '.join(missing)}. Run `face-verify download-models` first."
         )
-    return FaceEncoder(ScrfdDetector.from_path(paths[0]), OnnxArcFaceEmbedder.from_path(paths[1]))
+    return FaceEncoder(ScrfdDetector.from_path(paths[0]), OnnxArcFaceEmbedder.from_path(paths[1]), save_aligned_dir=str(models_dir / "align"))
 
 
 def _build_pipeline(args: argparse.Namespace) -> VerificationPipeline:
@@ -131,7 +131,7 @@ def _cmd_evaluate(args: argparse.Namespace) -> int:
     skipped: List[str] = []
     for person_dir in sorted(p for p in args.dataset.iterdir() if p.is_dir()):
         for image_path in list_images(person_dir):
-            embedding = encoder.encode(load_image(image_path))
+            embedding = encoder.encode(load_image(image_path), image_id=image_path.stem)
             if embedding is None:
                 skipped.append(str(image_path))
             else:

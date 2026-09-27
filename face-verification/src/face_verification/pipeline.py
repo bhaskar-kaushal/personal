@@ -72,7 +72,7 @@ class VerificationPipeline:
         enrolled_at = self._clock()
         samples = []
         for source, image in images:
-            embedding = self._encoder.encode(image)
+            embedding = self._encoder.encode(image, image_id=source)
             if embedding is None:
                 raise NoFaceDetectedError(f"No face detected in enrollment image {source!r}")
             samples.append(EnrollmentSample(embedding, enrolled_at, source))
@@ -95,7 +95,7 @@ class VerificationPipeline:
         if record is None or not record.samples:
             return VerificationResult(person_id, VerificationStatus.NOT_ENROLLED, None, threshold)
 
-        embedding = self._encoder.encode(image)
+        embedding = self._encoder.encode(image, image_id=person_id)
         if embedding is None:
             return VerificationResult(person_id, VerificationStatus.NO_FACE, None, threshold)
 
@@ -122,7 +122,7 @@ class VerificationPipeline:
         if not person_ids:
             return IdentificationResult(IdentificationStatus.EMPTY_GALLERY, None, None, threshold, 0)
 
-        embedding = self._encoder.encode(image)
+        embedding = self._encoder.encode(image, image_id="probe")
         if embedding is None:
             return IdentificationResult(
                 IdentificationStatus.NO_FACE, None, None, threshold, len(person_ids)
