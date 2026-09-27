@@ -36,13 +36,19 @@ A missing face or a missing enrollment is never reported as a low-score mismatch
 ```bash
 cd face-verification
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -e ".[cv2,dev]"
 face-verify download-models                        # online, once
 face-verify download-models --zip /path/buffalo_l.zip   # air-gapped alternative
 ```
 
 After the models are installed, no step uses the network. Everything runs on the CPU through
 `onnxruntime`.
+
+OpenCV is an optional extra (`cv2`), not a hard dependency: `detection.ScrfdDetector`'s
+resize and `alignment.align_face`'s warp are both injectable (see their `resize`/`warp`
+parameters), defaulting to OpenCV. `face_verification/pillow_ops.py` (the `pillow` extra)
+is a drop-in alternative for deployments where OpenCV's footprint is a problem — see
+`web/README.md` for why the Vercel demo needs it. The CLI always uses the OpenCV defaults.
 
 ## Usage
 
@@ -118,6 +124,12 @@ ArcFace-class ONNX model or a model trained in-house. Because the embedder sits 
 ```bash
 pytest -q        # unit tests use fakes and need no model files
 ```
+
+## Web demo
+
+`web/` deploys a small public demo (enroll / verify / identify) to Vercel, using a
+smaller model pack and Blob-backed storage since a serverless function has no local disk
+and a tighter size budget than a normal install. See `web/README.md`.
 
 ## Roadmap
 

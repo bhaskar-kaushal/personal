@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>face-verification demo</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+  h1 { font-size: 1.4rem; }
+  .banner { background: #fff3cd; color: #664d03; border: 1px solid #ffe69c; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1.5rem; font-size: 0.9rem; }
+  section { border: 1px solid #8884; border-radius: 8px; padding: 1rem; margin-bottom: 1.25rem; }
+  label { display: block; margin-top: 0.5rem; font-weight: 600; font-size: 0.9rem; }
+  input[type=text] { width: 100%; padding: 0.4rem; box-sizing: border-box; }
+  button { margin-top: 0.75rem; padding: 0.5rem 1rem; cursor: pointer; }
+  pre { background: #8882; padding: 0.75rem; border-radius: 6px; overflow-x: auto; font-size: 0.85rem; white-space: pre-wrap; }
+  .muted { color: #888; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+  <h1>face-verification demo</h1>
+  <p class="banner">
+    <strong>Demo only.</strong> This is a public, unauthenticated demo of an
+    offline facial identity verification pipeline running a compact model pack
+    (not the CLI's higher-accuracy default). Anyone can enroll or search this
+    gallery. Do not upload real photos of real people &mdash; use synthetic or
+    sample faces only. The gallery is wiped daily and offers no privacy
+    guarantees. Not for production identity verification.
+  </p>
+
+  <section>
+    <h2>Enroll</h2>
+    <p class="muted">Bulk-enrolls a person from up to 5 photos (1:N-friendly gallery).</p>
+    <label>Person ID</label>
+    <input type="text" id="enroll-person-id" placeholder="e.g. alice">
+    <label>Photos</label>
+    <input type="file" id="enroll-images" accept="image/*" multiple>
+    <button onclick="doEnroll()">Enroll</button>
+    <pre id="enroll-result"></pre>
+  </section>
+
+  <section>
+    <h2>Verify (1:1)</h2>
+    <p class="muted">Checks a photo against one claimed identity.</p>
+    <label>Person ID</label>
+    <input type="text" id="verify-person-id" placeholder="e.g. alice">
+    <label>Photo</label>
+    <input type="file" id="verify-image" accept="image/*">
+    <button onclick="doVerify()">Verify</button>
+    <pre id="verify-result"></pre>
+  </section>
+
+  <section>
+    <h2>Identify (1:N)</h2>
+    <p class="muted">Searches the whole gallery for the best match.</p>
+    <label>Photo</label>
+    <input type="file" id="identify-image" accept="image/*">
+    <button onclick="doIdentify()">Identify</button>
+    <pre id="identify-result"></pre>
+  </section>
+
+  <section>
+    <h2>Gallery</h2>
+    <button onclick="loadGallery()">Refresh</button>
+    <pre id="gallery-result"></pre>
+  </section>
+
+<script>
+async function postForm(url, formData, resultId) {
+  const el = document.getElementById(resultId);
+  el.textContent = 'Working...';
+  try {
+    const res = await fetch(url, { method: 'POST', body: formData });
+    const body = await res.json();
+    el.textContent = res.status + '\n' + JSON.stringify(body, null, 2);
+  } catch (err) {
+    el.textContent = 'Request failed: ' + err;
+  }
+}
+
+function doEnroll() {
+  const personId = document.getElementById('enroll-person-id').value.trim();
+  const files = document.getElementById('enroll-images').files;
+  if (!personId || files.length === 0) {
+    document.getElementById('enroll-result').textContent = 'Enter a person ID and choose at least one photo.';
+    return;
+  }
+  const fd = new FormData();
+  fd.append('person_id', personId);
+  for (const f of files) fd.append('images', f);
+  postForm('/api/enroll', fd, 'enroll-result');
+}
+
+function doVerify() {
+  const personId = document.getElementById('verify-person-id').value.trim();
+  const files = document.getElementById('verify-image').files;
+  if (!personId || files.length === 0) {
+    document.getElementById('verify-result').textContent = 'Enter a person ID and choose a photo.';
+    return;
+  }
+  const fd = new FormData();
+  fd.append('person_id', personId);
+  fd.append('image', files[0]);
+  postForm('/api/verify', fd, 'verify-result');
+}
+
+function doIdentify() {
+  const files = document.getElementById('identify-image').files;
+  if (files.length === 0) {
+    document.getElementById('identify-result').textContent = 'Choose a photo.';
+    return;
+  }
+  const fd = new FormData();
+  fd.append('image', files[0]);
+  postForm('/api/identify', fd, 'identify-result');
+}
+
+async function loadGallery() {
+  const el = document.getElementById('gallery-result');
+  el.textContent = 'Loading...';
+  try {
+    const res = await fetch('/api/gallery');
+    el.textContent = JSON.stringify(await res.json(), null, 2);
+  } catch (err) {
+    el.textContent = 'Request failed: ' + err;
+  }
+}
+
+loadGallery();
+</script>
+</body>
+</html>

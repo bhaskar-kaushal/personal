@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/index.py": {
+      "memory": 2048,
+      "maxDuration": 30,
+      "excludeFiles": "{tests/**,__tests__/**,**/*.test.py,**/test_*.py}"
+    }
+  },
+  "crons": [{ "path": "/api/admin/reset", "schedule": "0 3 * * *" }]
+}
