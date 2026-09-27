@@ -1,8 +1,9 @@
 # Face Verification
 
-Offline **1:1 facial identity verification** for access control: confirm that the person
-presenting at a facility is the registered person they claim to be. There is no 1:N search:
-every check is against a single claimed identity's enrolled record.
+Offline facial identity verification for access control. The primary mode is **1:1
+verification**: confirm that the person presenting at a facility is the registered person
+they claim to be, checked against a single claimed identity's enrolled record. An optional
+**1:N** mode enrolls or searches across the whole gallery instead (see below).
 
 ## Pipeline
 
@@ -61,6 +62,29 @@ together with the TAR at that threshold.
 Defaults: models are read from `models/`, the gallery is kept in `data/gallery/` and the
 threshold is `0.40`. Both directories are gitignored because they hold model weights and
 biometric data.
+
+### 1:N enrollment and matching
+
+```bash
+# Bulk-enroll every <dataset>/<person_id>/*.jpg folder as its own person
+face-verify enroll --dataset data/onboarding_photos
+# {"enrolled": [{"person_id": "alice", "num_samples": 3}, ...], "errors": []}
+# A folder with no detectable face is reported in "errors" and skipped;
+# it doesn't stop the rest of the batch.
+
+# Search the whole gallery instead of checking a claimed identity
+face-verify verify --identify --image probe.jpg
+# {"status": "match", "identified": true, "person_id": "alice", "score": 0.93,
+#  "threshold": 0.4, "num_candidates": 6}
+# exit code: 0 match, 1 no match, 2 inconclusive (no_face / empty_gallery)
+```
+
+`--identify` is a linear scan that scores the probe against every enrolled person's
+template — there is no approximate nearest-neighbour index, so cost grows with gallery
+size. That is fine for facility-scale galleries; it is not meant for large-scale 1:N search.
+Because false accepts compound across every additional candidate, calibrate the threshold
+for `--identify` (via `evaluate --target-far`) using a target FAR tighter than you would
+accept for plain 1:1 `verify`.
 
 ## Threshold
 

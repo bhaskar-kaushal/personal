@@ -10,8 +10,10 @@ Project rules are in `conventions.md` and take priority over the repo-wide `.cla
 pip install -e ".[dev]"
 pytest -q                                   # no models needed
 face-verify download-models [--zip PATH]    # installs models/det_10g.onnx, models/w600k_r50.onnx
-face-verify enroll   --person-id ID --images A.jpg B.jpg
-face-verify verify   --person-id ID --image P.jpg
+face-verify enroll   --person-id ID --images A.jpg B.jpg   # 1:1 enrollment
+face-verify enroll   --dataset DIR                          # 1:N bulk enrollment (DIR/<person_id>/*.jpg)
+face-verify verify   --person-id ID --image P.jpg           # 1:1 verification
+face-verify verify   --identify --image P.jpg               # 1:N search across the gallery
 face-verify evaluate --dataset DIR --target-far 1e-3
 ```
 

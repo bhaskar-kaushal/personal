@@ -5,6 +5,8 @@ import pytest
 
 from face_verification.similarity import cosine_similarity, l2_normalize
 from face_verification.verification import (
+    IdentificationResult,
+    IdentificationStatus,
     ThresholdVerifier,
     VerificationResult,
     VerificationStatus,
@@ -34,6 +36,7 @@ def test_threshold_is_inclusive():
 
     assert verifier.decide(0.4) is VerificationStatus.MATCH
     assert verifier.decide(0.3999) is VerificationStatus.NO_MATCH
+    assert verifier.accepts(0.4) and not verifier.accepts(0.3999)
 
 
 @pytest.mark.parametrize("threshold", [-1.1, 1.01])
@@ -53,3 +56,20 @@ def test_result_serialises():
         "score": 0.712346,
         "threshold": 0.4,
     }
+
+
+def test_identification_result_serialises():
+    match = IdentificationResult(IdentificationStatus.MATCH, "alice", 0.9123456, 0.4, 5)
+    empty = IdentificationResult(IdentificationStatus.EMPTY_GALLERY, None, None, 0.4, 0)
+
+    assert match.is_identified
+    assert match.to_dict() == {
+        "status": "match",
+        "identified": True,
+        "person_id": "alice",
+        "score": 0.912346,
+        "threshold": 0.4,
+        "num_candidates": 5,
+    }
+    assert not empty.is_identified
+    assert empty.to_dict()["person_id"] is None and empty.to_dict()["score"] is None
