@@ -7,10 +7,13 @@ translation) so that five detected landmarks land on the canonical ArcFace
 matching it is what makes embeddings comparable across images.
 """
 
-import cv2
+from typing import Callable, Tuple
+
 import numpy as np
 
 ALIGNED_FACE_SIZE = 112
+
+Warp = Callable[[np.ndarray, np.ndarray, Tuple[int, int]], np.ndarray]
 
 # Left eye, right eye, nose tip, left mouth corner, right mouth corner (image coordinates).
 ARCFACE_TEMPLATE_112 = np.array(
@@ -67,18 +70,25 @@ def estimate_similarity_transform(source: np.ndarray, target: np.ndarray) -> np.
     return np.hstack([scale * rotation, translation[:, None]]).astype(np.float32)
 
 
-def align_face(image: np.ndarray, landmarks: np.ndarray) -> np.ndarray:
+def warp_affine_with_cv2(image: np.ndarray, matrix: np.ndarray, size: Tuple[int, int]) -> np.ndarray:
+    """Default `Warp`: OpenCV, imported lazily so it's only required when used."""
+    import cv2
+
+    return cv2.warpAffine(image, matrix, size, borderValue=0.0)
+
+
+def align_face(image: np.ndarray, landmarks: np.ndarray, warp: Warp = warp_affine_with_cv2) -> np.ndarray:
     """
     Warp a face into the canonical 112x112 ArcFace crop.
 
     Args:
         image: BGR image (H, W, 3).
         landmarks: (5, 2) landmarks in the order of ARCFACE_TEMPLATE_112.
+        warp: (image, 2x3 affine matrix, (width, height)) -> warped image. Defaults
+            to OpenCV; pass an alternative to avoid needing OpenCV installed at all.
 
     Returns:
         Aligned (112, 112, 3) BGR uint8 crop.
     """
     matrix = estimate_similarity_transform(landmarks, ARCFACE_TEMPLATE_112)
-    return cv2.warpAffine(
-        image, matrix, (ALIGNED_FACE_SIZE, ALIGNED_FACE_SIZE), borderValue=0.0
-    )
+    return warp(image, matrix, (ALIGNED_FACE_SIZE, ALIGNED_FACE_SIZE))

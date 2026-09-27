@@ -9,12 +9,15 @@ description = "Offline 1:1 facial identity verification (SCRFD + ArcFace via ONN
 requires-python = ">=3.10"
 dependencies = [
     "numpy>=1.24",
-    "opencv-python-headless>=4.8",
     "onnxruntime>=1.16",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7"]
+# The CLI (image loading, default resize/warp) needs OpenCV; a deployment that
+# supplies its own Pillow-based resize/warp (see pillow_ops.py) does not.
+cv2 = ["opencv-python-headless>=4.8"]
+pillow = ["Pillow>=10"]
+dev = ["pytest>=7", "opencv-python-headless>=4.8", "Pillow>=10"]
 
 [project.scripts]
 face-verify = "face_verification.cli:main"

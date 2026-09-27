@@ -1,23 +1,35 @@
 """
-Face detection with SCRFD (InsightFace `det_10g.onnx`) on ONNX Runtime.
+Face detection with SCRFD (InsightFace `det_10g.onnx` / `det_500m.onnx`) on ONNX Runtime.
 
-The anchor decoding is implemented here directly so the only runtime
-dependencies are numpy, OpenCV and onnxruntime.
+The anchor decoding is implemented here directly so the only hard runtime
+dependencies are numpy and onnxruntime. Image resizing is the one op that
+needs an imaging library; it is injected (see `Resize`) rather than imported
+at module level, so callers that supply their own (e.g. a Pillow-based one
+for a deployment that can't afford OpenCV's footprint) never need OpenCV
+installed at all. `resize_with_cv2` is the default for callers that don't care.
 """
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
-import cv2
 import numpy as np
 import onnxruntime as ort
+
+Resize = Callable[[np.ndarray, Tuple[int, int]], np.ndarray]
 
 DEFAULT_INPUT_SIZE = (640, 640)
 DEFAULT_SCORE_THRESHOLD = 0.5
 DEFAULT_NMS_THRESHOLD = 0.4
 DEFAULT_PROVIDERS = ("CPUExecutionProvider",)
+
+
+def resize_with_cv2(image: np.ndarray, size: Tuple[int, int]) -> np.ndarray:
+    """Default `Resize`: OpenCV, imported lazily so it's only required when used."""
+    import cv2
+
+    return cv2.resize(image, size)
 
 _STRIDES = (8, 16, 32)
 _ANCHORS_PER_LOCATION = 2
@@ -70,6 +82,7 @@ class ScrfdDetector(FaceDetector):
         input_size: Tuple[int, int] = DEFAULT_INPUT_SIZE,
         score_threshold: float = DEFAULT_SCORE_THRESHOLD,
         nms_threshold: float = DEFAULT_NMS_THRESHOLD,
+        resize: Resize = resize_with_cv2,
     ):
         """
         Args:
@@ -77,6 +90,8 @@ class ScrfdDetector(FaceDetector):
             input_size: Network input (width, height); both must be multiples of 32.
             score_threshold: Minimum confidence to keep a detection.
             nms_threshold: IoU above which overlapping detections are suppressed.
+            resize: (image, (width, height)) -> resized image. Defaults to OpenCV;
+                pass an alternative to avoid needing OpenCV installed at all.
         """
         if len(session.get_outputs()) != 3 * len(_STRIDES):
             raise ValueError("SCRFD model must expose score, bbox and keypoint outputs per stride")
@@ -85,13 +100,14 @@ class ScrfdDetector(FaceDetector):
         self._input_size = input_size
         self._score_threshold = score_threshold
         self._nms_threshold = nms_threshold
+        self._resize = resize
         self._anchor_cache: Dict[Tuple[int, int, int], np.ndarray] = {}
 
     @classmethod
     def from_path(
         cls, model_path: Path, providers: Optional[Sequence[str]] = None, **kwargs
     ) -> "ScrfdDetector":
-        """Load the detector from an ONNX file."""
+        """Load the detector from an ONNX file. Extra kwargs (e.g. `resize`) pass through."""
         session = ort.InferenceSession(
             str(model_path), providers=list(providers or DEFAULT_PROVIDERS)
         )
@@ -119,7 +135,7 @@ class ScrfdDetector(FaceDetector):
         new_width = max(1, int(round(image_width * scale)))
         new_height = max(1, int(round(image_height * scale)))
         canvas = np.zeros((height, width, 3), dtype=np.uint8)
-        canvas[:new_height, :new_width] = cv2.resize(image, (new_width, new_height))
+        canvas[:new_height, :new_width] = self._resize(image, (new_width, new_height))
         rgb = canvas[:, :, ::-1].astype(np.float32)
         blob = ((rgb - 127.5) / 128.0).transpose(2, 0, 1)[None]
         return np.ascontiguousarray(blob), new_height / image_height
