@@ -8,7 +8,11 @@ import pytest
 from face_verification.encoder import FaceEncoder
 from face_verification.gallery import FileEnrollmentStore
 from face_verification.pipeline import NoFaceDetectedError, VerificationPipeline
-from face_verification.verification import ThresholdVerifier, VerificationStatus
+from face_verification.verification import (
+    IdentificationStatus,
+    ThresholdVerifier,
+    VerificationStatus,
+)
 from tests.conftest import PixelEmbedder, StubDetector, face_at
 
 WHEN = datetime(2026, 9, 1, tzinfo=timezone.utc)
@@ -70,3 +74,46 @@ def test_largest_face_is_used(tmp_path):
     pipeline.enroll("alice", [("blue.jpg", np.full((400, 400, 3), (255, 0, 0), np.uint8))])
 
     assert pipeline.verify("alice", image).status is VerificationStatus.MATCH
+
+
+def test_identify_reports_empty_gallery(tmp_path):
+    result = _pipeline(tmp_path, StubDetector([face_at(50, 50)])).identify(_image(100))
+
+    assert result.status is IdentificationStatus.EMPTY_GALLERY
+    assert result.person_id is None and result.score is None and result.num_candidates == 0
+
+
+def test_identify_reports_no_face(tmp_path):
+    enrolled = _pipeline(tmp_path, StubDetector([face_at(50, 50)]))
+    enrolled.enroll("alice", [("a.jpg", _image((200, 20, 20)))])
+
+    result = _pipeline(tmp_path, StubDetector([])).identify(_image((200, 20, 20)))
+
+    assert result.status is IdentificationStatus.NO_FACE
+    assert result.person_id is None and result.num_candidates == 1
+
+
+def test_identify_finds_best_match_across_gallery(tmp_path):
+    detector = StubDetector([face_at(50, 50)])
+    pipeline = _pipeline(tmp_path, detector, threshold=0.99)
+    pipeline.enroll("alice", [("a.jpg", _image((200, 20, 20)))])
+    pipeline.enroll("bob", [("b.jpg", _image((20, 200, 20)))])
+    pipeline.enroll("carol", [("c.jpg", _image((20, 20, 200)))])
+
+    result = pipeline.identify(_image((20, 200, 20)))
+
+    assert result.status is IdentificationStatus.MATCH
+    assert result.person_id == "bob" and result.score == pytest.approx(1.0)
+    assert result.num_candidates == 3
+
+
+def test_identify_no_match_when_best_score_below_threshold(tmp_path):
+    detector = StubDetector([face_at(50, 50)])
+    pipeline = _pipeline(tmp_path, detector, threshold=0.99)
+    pipeline.enroll("alice", [("a.jpg", _image((200, 20, 20)))])
+
+    result = pipeline.identify(_image((20, 20, 200)))
+
+    assert result.status is IdentificationStatus.NO_MATCH
+    assert result.person_id == "alice"  # best (only) candidate is still reported for audit
+    assert result.score < 0.99

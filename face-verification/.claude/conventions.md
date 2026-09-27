@@ -13,7 +13,11 @@ These rules extend the repo-wide `.claude/CLAUDE.md` (OOP/SOLID, type hints, Goo
 
 ## Outcomes
 - Report `NO_FACE` and `NOT_ENROLLED` explicitly. Never turn them into a low score or a `NO_MATCH`.
-- Enrollment is all-or-nothing: if any image has no face, nothing is stored.
+- Enrollment is all-or-nothing per person: if any image has no face, nothing is stored for
+  that person. Bulk (`--dataset`) enrollment applies this per person and continues past a
+  failed person rather than aborting the whole batch.
+- `identify` (1:N) reports `EMPTY_GALLERY` and `NO_FACE` explicitly, same as `verify` does for
+  `NOT_ENROLLED`/`NO_FACE`. It is a linear scan over the gallery, not an indexed search.
 
 ## Biometric data
 - Never commit images, galleries, embeddings or evaluation reports. Keep them under `data/`.

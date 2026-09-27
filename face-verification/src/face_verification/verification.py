@@ -71,6 +71,10 @@ class ThresholdVerifier:
         """Configured cut-off."""
         return self._threshold
 
+    def accepts(self, score: float) -> bool:
+        """True if score meets the threshold."""
+        return score >= self._threshold
+
     def decide(self, score: float) -> VerificationStatus:
         """
         Map a similarity score to MATCH or NO_MATCH.
@@ -81,4 +85,49 @@ class ThresholdVerifier:
         Returns:
             MATCH if score >= threshold, else NO_MATCH.
         """
-        return VerificationStatus.MATCH if score >= self._threshold else VerificationStatus.NO_MATCH
+        return VerificationStatus.MATCH if self.accepts(score) else VerificationStatus.NO_MATCH
+
+
+class IdentificationStatus(str, Enum):
+    """Outcome of a 1:N identification attempt."""
+
+    MATCH = "match"
+    NO_MATCH = "no_match"
+    NO_FACE = "no_face"
+    EMPTY_GALLERY = "empty_gallery"
+
+
+@dataclass(frozen=True)
+class IdentificationResult:
+    """
+    Result of searching a probe image against every enrolled identity.
+
+    Attributes:
+        status: Decision outcome.
+        person_id: Best-scoring candidate's id; None if no candidate was scored.
+        score: That candidate's cosine similarity to its template; None if no candidate was scored.
+        threshold: Threshold applied to the score.
+        num_candidates: Number of enrolled identities searched.
+    """
+
+    status: IdentificationStatus
+    person_id: Optional[str]
+    score: Optional[float]
+    threshold: float
+    num_candidates: int
+
+    @property
+    def is_identified(self) -> bool:
+        """True only for a positive match."""
+        return self.status is IdentificationStatus.MATCH
+
+    def to_dict(self) -> Dict[str, Any]:
+        """JSON-serialisable representation."""
+        return {
+            "status": self.status.value,
+            "identified": self.is_identified,
+            "person_id": self.person_id,
+            "score": None if self.score is None else round(self.score, 6),
+            "threshold": self.threshold,
+            "num_candidates": self.num_candidates,
+        }

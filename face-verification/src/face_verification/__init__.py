@@ -14,6 +14,8 @@ from face_verification.pipeline import NoFaceDetectedError, VerificationPipeline
 from face_verification.similarity import cosine_similarity, l2_normalize
 from face_verification.verification import (
     DEFAULT_THRESHOLD,
+    IdentificationResult,
+    IdentificationStatus,
     ThresholdVerifier,
     VerificationResult,
     VerificationStatus,
@@ -30,6 +32,8 @@ __all__ = [
     "FaceEmbedder",
     "FaceEncoder",
     "FileEnrollmentStore",
+    "IdentificationResult",
+    "IdentificationStatus",
     "NoFaceDetectedError",
     "OnnxArcFaceEmbedder",
     "ScrfdDetector",

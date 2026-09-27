@@ -19,9 +19,10 @@ from face_verification.model_download import (
     EMBEDDER_FILENAME,
     install_models,
 )
-from face_verification.pipeline import VerificationPipeline
+from face_verification.pipeline import NoFaceDetectedError, VerificationPipeline
 from face_verification.verification import (
     DEFAULT_THRESHOLD,
+    IdentificationStatus,
     ThresholdVerifier,
     VerificationStatus,
 )
@@ -66,6 +67,13 @@ def _cmd_download_models(args: argparse.Namespace) -> int:
 
 
 def _cmd_enroll(args: argparse.Namespace) -> int:
+    if args.dataset is not None:
+        if args.person_id or args.images:
+            raise ValueError("--dataset cannot be combined with --person-id/--images")
+        return _enroll_dataset(_build_pipeline(args), args.dataset)
+
+    if not args.person_id or not args.images:
+        raise ValueError("--person-id and --images are required unless --dataset is set")
     pipeline = _build_pipeline(args)
     images = [(path.name, load_image(path)) for path in args.images]
     record = pipeline.enroll(args.person_id, images)
@@ -73,7 +81,41 @@ def _cmd_enroll(args: argparse.Namespace) -> int:
     return 0
 
 
+def _enroll_dataset(pipeline: VerificationPipeline, dataset: Path) -> int:
+    """
+    Bulk (1:N) enrollment: enroll every `<dataset>/<person_id>/*.jpg` folder as its own person.
+
+    A folder with no detectable face is reported as an error and skipped; it does
+    not stop the rest of the batch.
+    """
+    enrolled: List[Dict[str, object]] = []
+    errors: List[Dict[str, str]] = []
+    for person_dir in sorted(p for p in dataset.iterdir() if p.is_dir()):
+        images = [(path.name, load_image(path)) for path in list_images(person_dir)]
+        if not images:
+            continue
+        try:
+            record = pipeline.enroll(person_dir.name, images)
+        except NoFaceDetectedError as error:
+            errors.append({"person_id": person_dir.name, "error": str(error)})
+        else:
+            enrolled.append({"person_id": record.person_id, "num_samples": len(record.samples)})
+    print(json.dumps({"enrolled": enrolled, "errors": errors}))
+    return EXIT_INCONCLUSIVE if errors else 0
+
+
 def _cmd_verify(args: argparse.Namespace) -> int:
+    if args.identify:
+        result = _build_pipeline(args).identify(load_image(args.image))
+        print(json.dumps(result.to_dict()))
+        if result.status is IdentificationStatus.MATCH:
+            return EXIT_MATCH
+        if result.status is IdentificationStatus.NO_MATCH:
+            return EXIT_NO_MATCH
+        return EXIT_INCONCLUSIVE
+
+    if not args.person_id:
+        raise ValueError("--person-id is required unless --identify is set")
     result = _build_pipeline(args).verify(args.person_id, load_image(args.image))
     print(json.dumps(result.to_dict()))
     if result.status is VerificationStatus.MATCH:
@@ -125,18 +167,33 @@ def _build_parser() -> argparse.ArgumentParser:
     download.set_defaults(handler=_cmd_download_models)
 
     enroll = commands.add_parser(
-        "enroll", parents=[common, scoring, gallery], help="Enroll images for a person."
+        "enroll",
+        parents=[common, scoring, gallery],
+        help="Enroll images for one person, or bulk-enroll many with --dataset (1:N).",
     )
-    enroll.add_argument("--person-id", required=True)
-    enroll.add_argument("--images", type=Path, nargs="+", required=True)
+    enroll.add_argument("--person-id", help="Identity to enroll (single-person mode).")
+    enroll.add_argument(
+        "--images", type=Path, nargs="+", help="Images for --person-id (single-person mode)."
+    )
+    enroll.add_argument(
+        "--dataset",
+        type=Path,
+        help="Bulk-enroll every <dataset>/<person_id>/*.jpg folder as its own person (1:N).",
+    )
     enroll.set_defaults(handler=_cmd_enroll)
 
     verify = commands.add_parser(
         "verify",
         parents=[common, scoring, gallery],
-        help="Verify an image against a claimed identity (exit 0 match, 1 no match, 2 inconclusive).",
+        help="Verify a claimed identity (1:1), or search the whole gallery with --identify (1:N). "
+        "Exit 0 match, 1 no match, 2 inconclusive.",
     )
-    verify.add_argument("--person-id", required=True)
+    verify.add_argument("--person-id", help="Claimed identity (required unless --identify).")
+    verify.add_argument(
+        "--identify",
+        action="store_true",
+        help="1:N search: find the best-matching identity across the whole gallery.",
+    )
     verify.add_argument("--image", type=Path, required=True)
     verify.set_defaults(handler=_cmd_verify)
 
