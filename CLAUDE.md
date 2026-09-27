@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository layout
 
-All code lives in `rag-type/`, a two-part RAG learning assignment (EPAM GenAI bootcamp):
+All code lives in `rag-type/`, a two-part RAG learning assignment (GenAI bootcamp):
 
 - `rag-type/basic-rag/` — Assignment 1: single-shot RAG (load chunks → embed → FAISS/ChromaDB → retrieve top-k → prompt → LLM).
 - `rag-type/conversational-rag/` — Assignment 2: wraps Assignment 1 with chat history, message trimming and a Streamlit UI.
@@ -42,7 +42,7 @@ python test_langfuse_instrumentation.py
 
 `.env` files (gitignored) are loaded with `python-dotenv` from the current working directory; the Langfuse test script loads `conversational-rag/.env` explicitly.
 
-- `DIAL_API_KEY`: EPAM DIAL key. Without it the client prints a warning and `get_completion` returns an error string. It does not raise.
+- `DIAL_API_KEY`: DIAL key. Without it the client prints a warning and `get_completion` returns an error string. It does not raise.
 - `TARGET_URL`: page to scrape when `chunks.json` is missing (defaults to the Wikipedia RAG article).
 - `EMBEDDING_MODEL`: HuggingFace/sentence-transformers model (default `all-MiniLM-L6-v2`).
 - `MAX_HISTORY_LENGTH` (default 10), `DIAL_TEMPERATURE` (default 0.7).
