@@ -28,8 +28,13 @@ itself; this directory only adds an HTTP layer and swaps in a smaller model pack
 
 ## Architecture
 
-Single FastAPI app (`api/index.py`) with `vercel.json` rewriting all paths to it, so
-FastAPI's own routes do the dispatch:
+Single FastAPI app (`api/index.py`). Vercel auto-detects it (`framework: "fastapi"` in
+the project) and routes every path to it directly, preserving the original request
+path — so FastAPI's own `@app.get`/`@app.post` routes do the dispatch with no
+`vercel.json` rewrite needed. (A manual `/(.*) -> /api/index` rewrite was tried first and
+broke every route: it rewrites the *path itself* to the literal string `/api/index`
+before the app sees it, so `/api/health` arrives as a request for `/api/index`, which
+matches nothing.)
 
 - `GET /` — the demo page (`api/_lib/templates/index.html`)
 - `GET /api/health`, `GET /api/gallery`
