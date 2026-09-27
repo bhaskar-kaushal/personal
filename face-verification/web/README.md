@@ -20,6 +20,11 @@ itself; this directory only adds an HTTP layer and swaps in a smaller model pack
   has no writable shared disk. `api/_lib/blob_store.py` implements the same
   `EnrollmentStore` interface the CLI's `FileEnrollmentStore` does, backed by Vercel Blob
   instead of the filesystem.
+- **Vendored core library:** `api/_vendor/face_verification/` is a copy of the relevant
+  modules from `../src/face_verification/`, added to `sys.path` at runtime rather than
+  pip-installed. Vercel's Python builder couldn't resolve a `-e ../` editable install of
+  the sibling package for this monorepo layout; see `api/_vendor/README.md` for the
+  details and how to keep it in sync.
 
 ## Architecture
 

@@ -9,7 +9,16 @@ and abuse. See README.md for the full set of caveats.
 
 import io
 import os
+import sys
+from pathlib import Path
 from typing import List, Optional
+
+# face_verification isn't pip-installed here: it's vendored under _vendor/ (see
+# _vendor/README.md) because Vercel's Python builder resolves `-e ../<sibling>`
+# editable installs relative to the wrong root for this monorepo layout. Putting
+# it on sys.path directly sidesteps packaging entirely, and _vendor/ is part of
+# this function's own bundle regardless of any monorepo build-boundary behavior.
+sys.path.insert(0, str(Path(__file__).resolve().parent / "_vendor"))
 
 import numpy as np
 from fastapi import FastAPI, File, Form, HTTPException, Header, UploadFile
