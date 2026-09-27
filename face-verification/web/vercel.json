@@ -3,7 +3,7 @@
   "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }],
   "functions": {
     "api/index.py": {
-      "memory": 3009,
+      "memory": 2048,
       "maxDuration": 30,
       "excludeFiles": "{tests/**,__tests__/**,**/*.test.py,**/test_*.py}"
     }
