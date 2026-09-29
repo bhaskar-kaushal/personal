@@ -1,8 +1,11 @@
 # face-verification web demo
 
 A public demo deploying the face-verification pipeline to Vercel: enroll, 1:1 verify,
-and 1:N identify from a browser. See the parent [README](../README.md) for the pipeline
-itself; this directory only adds an HTTP layer and swaps in a smaller model pack.
+and 1:N identify from a browser. See [`../../packages/face-verification/README.md`](../../packages/face-verification/README.md)
+for the pipeline itself; this directory only adds an HTTP layer and swaps in a smaller
+model pack. Layout: this is `apps/web/`, depending on the library at
+`../../packages/face-verification/` — see [`../../README.md`](../../README.md) for the
+overall `apps/` + `packages/` split.
 
 ## Why this isn't just `face-verify` on a server
 
@@ -20,17 +23,20 @@ itself; this directory only adds an HTTP layer and swaps in a smaller model pack
   has no writable shared disk. `api/_lib/blob_store.py` implements the same
   `EnrollmentStore` interface the CLI's `FileEnrollmentStore` does, backed by Vercel Blob
   instead of the filesystem.
-- **Local path dependency, not a copy:** `web/pyproject.toml` depends on `face-verification`
-  via `[tool.uv.sources] face-verification = { path = "..", editable = true }` — a real,
-  editable install of the sibling package, not a vendored copy. Two things were tried
-  first and didn't work: a bare `-e ../` in `requirements.txt` (Vercel's `uv` resolved the
-  relative path against the wrong root — `Distribution not found at:
-  .../face-verification/web/face-verification`), and a formal `uv` **workspace**
-  (`{ workspace = true }`), which built fine but crashed at runtime with
+- **Local path dependency, not a copy:** `apps/web/pyproject.toml` depends on
+  `face-verification` via `[tool.uv.sources] face-verification = { path =
+  "../../packages/face-verification", editable = true }` — a real, editable install of the
+  library, not a vendored copy. Two things were tried first and didn't work: a bare
+  `-e ../` editable install when the app lived nested inside the library's own directory
+  (Vercel's `uv` resolved the relative path against the wrong root), and a formal `uv`
+  **workspace** (`{ workspace = true }`), which built fine but crashed at runtime with
   `ModuleNotFoundError: No module named 'fastapi'` — `uv` workspaces always place a single
-  shared venv at the workspace *root* (`face-verification/.venv`), outside this function's
-  own `rootDirectory`, so Vercel's bundler never saw it. A plain path source keeps the venv
-  local to `web/.venv`, which is what actually gets bundled.
+  shared venv at the workspace *root*, outside this function's own `rootDirectory`, so
+  Vercel's bundler never saw it. A plain path source keeps the venv local to
+  `apps/web/.venv`, which is what actually gets bundled. This `apps/` + `packages/` split
+  (rather than the app nested inside the library's directory) is also what makes the path
+  read naturally as "a sibling package," instead of the earlier layout's "reach into my own
+  parent directory."
 
 ## Architecture
 
@@ -65,23 +71,24 @@ cost and abuse:
 - The page tells visitors not to upload real photos of real people.
 
 None of this makes it safe for real biometric data — it's a demo of the pipeline, not an
-access-control deployment. See the parent README's license caveat too: `buffalo_sc`, like
+access-control deployment. See the library README's license caveat too: `buffalo_sc`, like
 `buffalo_l`, is InsightFace's non-commercial-research-licensed weights.
 
 ## Deploying
 
-Requires a Vercel project with root directory `face-verification/web`,
-**`sourceFilesOutsideRootDirectory` enabled** (the build needs filesystem access to the
-sibling `face-verification/` package for the path dependency above), a Blob store
-connected to the project (provides `BLOB_READ_WRITE_TOKEN` automatically), and a
-`CRON_SECRET` env var (Vercel sends it automatically as `Authorization: Bearer
-$CRON_SECRET` to cron-triggered requests once the var is set).
+Requires a Vercel project with root directory `face-verification/apps/web`,
+**`sourceFilesOutsideRootDirectory` enabled** (the build needs filesystem access to
+`packages/face-verification/` for the path dependency above), a Blob store connected to
+the project (provides `BLOB_READ_WRITE_TOKEN` automatically), and a `CRON_SECRET` env var
+(Vercel sends it automatically as `Authorization: Bearer $CRON_SECRET` to cron-triggered
+requests once the var is set).
 
 ## Local development
 
 ```bash
-cd face-verification/web
-uv sync   # installs face-verification editable from ../, plus fastapi etc. into web/.venv
+cd face-verification/apps/web
+uv sync   # installs face-verification editable from ../../packages/face-verification,
+          # plus fastapi etc., into apps/web/.venv
 BLOB_READ_WRITE_TOKEN=... CRON_SECRET=... uv run uvicorn api.index:app --reload
 ```
 
