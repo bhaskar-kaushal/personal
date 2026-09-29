@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-face-verification = { workspace = true }
+face-verification = { path = "..", editable = true }
 
 [tool.uv]
 package = false

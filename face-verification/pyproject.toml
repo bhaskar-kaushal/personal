@@ -28,8 +28,3 @@ where = ["src"]
 [tool.pytest.ini_options]
 pythonpath = ["src", "."]
 testpaths = ["tests"]
-
-[tool.uv.workspace]
-# web/ (the Vercel demo) depends on this package as a workspace member instead
-# of a vendored copy -- see web/pyproject.toml and web/README.md.
-members = ["web"]
