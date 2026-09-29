@@ -25,8 +25,10 @@ face-verify evaluate --dataset DIR --target-far 1e-3
 - `tests/`: pytest. Test doubles live in `tests/conftest.py`: `FakeSession` stands in for
   onnxruntime, and there are `StubDetector` and `PixelEmbedder`.
 - `models/` and `data/`: gitignored because they hold model weights and biometric data.
-- `web/`: Vercel demo deployment (FastAPI + Blob storage + a smaller model pack). Has its
-  own `requirements.txt`/`vercel.json`; not part of the `face-verification` package install.
+- `web/`: Vercel demo deployment (FastAPI + Blob storage + a smaller model pack). Its own
+  `pyproject.toml`/`uv.lock`/`vercel.json`, depending on `face-verification` as a local
+  editable path dependency (`uv sync` installs it from `../` into `web/.venv`) rather than
+  a copy — see `web/README.md` for why a formal `uv` workspace didn't work here.
 
 ## OpenCV is optional
 
