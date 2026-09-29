@@ -1,4 +1,4 @@
-cd face-verification
+cd face-verification/packages/face-verification
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 face-verify download-models                        # online, once
