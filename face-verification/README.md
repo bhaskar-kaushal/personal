@@ -9,7 +9,8 @@ face-verification/
   packages/
     face-verification/   the library + CLI — see packages/face-verification/README.md
   apps/
-    web/                  the Vercel demo (enroll / verify / identify) — see apps/web/README.md
+    web/                  the Vercel demo API (enroll / verify / identify) — see apps/web/README.md
+    console/              Next.js operator UI that talks to apps/web — see apps/console/README.md
 ```
 
 `apps/web` depends on `packages/face-verification` via a local, editable `uv` path
@@ -20,4 +21,5 @@ builder), and not a vendored copy.
 
 Start with whichever half you're working on:
 - **Library/CLI**: `packages/face-verification/README.md`
-- **Web demo**: `apps/web/README.md`
+- **Web demo API**: `apps/web/README.md`
+- **Operator UI (Next.js)**: `apps/console/README.md`
