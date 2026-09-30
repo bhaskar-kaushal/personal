@@ -43,6 +43,8 @@ uv sync && uv run uvicorn api.index:app --reload
   own `pyproject.toml`/`uv.lock`/`vercel.json`, depending on `face-verification` as a local
   editable path dependency (`uv sync` installs it from `../../packages/face-verification`
   into `apps/web/.venv`) rather than a copy.
+- `apps/console/`: Next.js (App Router) operator UI, its own Vercel project. Proxies `/api/*`
+  to `apps/web` via `BACKEND_URL`. `cd apps/console && npm install && npm run dev`, `npm test`.
 
 ## OpenCV is optional
 
